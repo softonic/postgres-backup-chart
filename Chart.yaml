@@ -2,7 +2,7 @@ apiVersion: v2
 name: postgres-backup
 description: Take PostgreSQL backups from any PostgreSQL instance to AWS S3. Supports GCP CloudSQL
 type: application
-version: 1.0.0
+version: 1.0.1
 appVersion: "0.1.0"
 icon: https://avatars0.githubusercontent.com/u/170456
 keywords:

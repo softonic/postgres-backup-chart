@@ -61,7 +61,7 @@ Uploads `s3://<bucket>/<filePrefix>-<epoch>.sql.gz`.
 | `backup.ttlSecondsAfterFinished` | unset | Seconds before completed jobs are deleted. |
 | `backup.image.repository` / `.tag` | `softonic/postgres-backup` / `0.1.0` | Image. |
 | `backup.resources` | 1 CPU / 1Gi limits | Container resources. |
-| `serviceAccount.create` | `true` | Create a ServiceAccount named after the release. |
+| `serviceAccount.create` | `false` | Create a ServiceAccount named after the release. Off by default: the pod never calls the Kubernetes API. |
 
 `backup.podLabels`, `backup.annotations`, `backup.nodeSelector`, `backup.tolerations` and
 `backup.affinity` behave as usual.

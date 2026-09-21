@@ -51,6 +51,9 @@ backup:
   affinity: {}
 
 serviceAccount:
-  create: true
+  # Off by default: the pod talks to PostgreSQL and S3, never to the Kubernetes API, so a
+  # dedicated identity carries no RBAC and buys nothing. It also keeps ServiceAccount out
+  # of the ArgoCD AppProject whitelists, which often exclude it deliberately.
+  create: false
   # Defaults to the fullname of the release when empty.
   name: ""

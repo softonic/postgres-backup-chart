@@ -1,0 +1,102 @@
+{{- if and (not .Values.postgres.host) (not .Values.postgres.hostFrom.secretKeyRef.name) }}{{ fail "either postgres.host or postgres.hostFrom.secretKeyRef.name is required" }}{{ end }}
+{{- if and .Values.postgres.host .Values.postgres.hostFrom.secretKeyRef.name }}{{ fail "set either postgres.host or postgres.hostFrom.secretKeyRef.name, not both" }}{{ end }}
+{{- if not .Values.postgres.database }}{{ fail "postgres.database is required" }}{{ end }}
+{{- if not .Values.postgres.secret.name }}{{ fail "postgres.secret.name is required" }}{{ end }}
+{{- if not .Values.s3.bucket }}{{ fail "s3.bucket is required" }}{{ end }}
+{{- if not .Values.s3.filePrefix }}{{ fail "s3.filePrefix is required" }}{{ end }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "postgres-backup.fullname" . }}
+  labels:
+{{ include "postgres-backup.labels" . | indent 4 }}
+spec:
+  schedule: "{{ .Values.backup.schedule }}"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: {{ .Values.backup.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.backup.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+{{- if .Values.backup.ttlSecondsAfterFinished }}
+      ttlSecondsAfterFinished: {{ .Values.backup.ttlSecondsAfterFinished }}
+{{- end }}
+      template:
+        metadata:
+          labels:
+            app: postgresbackup
+{{ include "postgres-backup.labels" . | indent 12 }}
+{{- with .Values.backup.podLabels }}
+{{ toYaml . | indent 12 }}
+{{- end }}
+      {{- with .Values.backup.annotations }}
+          annotations:
+{{ toYaml . | indent 12 }}
+      {{- end }}
+        spec:
+          serviceAccountName: {{ include "postgres-backup.serviceAccountName" . }}
+          restartPolicy: OnFailure
+          containers:
+          - name: backup
+            image: "{{ .Values.backup.image.repository }}:{{ .Values.backup.image.tag }}"
+            imagePullPolicy: {{ .Values.backup.image.pullPolicy }}
+            env:
+{{- if .Values.postgres.hostFrom.secretKeyRef.name }}
+            - name: POSTGRES_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.hostFrom.secretKeyRef.name }}
+                  key: {{ .Values.postgres.hostFrom.secretKeyRef.key }}
+{{- else }}
+            - name: POSTGRES_HOST
+              value: "{{ .Values.postgres.host }}"
+{{- end }}
+            - name: POSTGRES_PORT
+              value: "{{ .Values.postgres.port }}"
+            - name: POSTGRES_DATABASE
+              value: "{{ .Values.postgres.database }}"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.secret.name }}
+                  key: {{ .Values.postgres.secret.keys.user }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.secret.name }}
+                  key: {{ .Values.postgres.secret.keys.password }}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.s3.secret.name }}
+                  key: {{ .Values.s3.secret.keys.accessKeyId }}
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.s3.secret.name }}
+                  key: {{ .Values.s3.secret.keys.secretAccessKey }}
+{{- if .Values.s3.endpointUrl }}
+            - name: AWS_ENDPOINT_URL
+              value: "{{ .Values.s3.endpointUrl }}"
+{{- end }}
+            - name: AWS_S3_BUCKET
+              value: "{{ .Values.s3.bucket }}"
+            - name: AWS_S3_FILE_PREFIX
+              value: "{{ .Values.s3.filePrefix }}"
+            resources:
+{{- toYaml .Values.backup.resources | nindent 14 }}
+{{- if .Values.backup.image.imagePullSecret }}
+          imagePullSecrets:
+          - name: {{ .Values.backup.image.imagePullSecret }}
+{{- end }}
+          {{- with .Values.backup.nodeSelector }}
+          nodeSelector:
+{{ toYaml . | indent 12 }}
+          {{- end }}
+          {{- with .Values.backup.affinity }}
+          affinity:
+{{ toYaml . | indent 12 }}
+          {{- end }}
+          {{- with .Values.backup.tolerations }}
+          tolerations:
+{{ toYaml . | indent 12 }}
+          {{- end }}

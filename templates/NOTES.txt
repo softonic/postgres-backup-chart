@@ -1,0 +1,12 @@
+{{ include "postgres-backup.fullname" . }} will dump the database "{{ .Values.postgres.database }}"
+from {{ .Values.postgres.host | default (printf "$%s/%s" .Values.postgres.hostFrom.secretKeyRef.name .Values.postgres.hostFrom.secretKeyRef.key) }}:{{ .Values.postgres.port }} on schedule "{{ .Values.backup.schedule }}"
+and upload it to s3://{{ .Values.s3.bucket }}/{{ .Values.s3.filePrefix }}-<epoch>.sql.gz
+
+Check the last runs with:
+
+  kubectl get cronjob {{ include "postgres-backup.fullname" . }} -n {{ .Release.Namespace }}
+  kubectl logs -n {{ .Release.Namespace }} -l app=postgresbackup --tail=50
+
+Trigger a run manually with:
+
+  kubectl create job -n {{ .Release.Namespace }} --from=cronjob/{{ include "postgres-backup.fullname" . }} {{ include "postgres-backup.fullname" . }}-manual

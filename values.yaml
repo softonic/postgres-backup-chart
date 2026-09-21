@@ -1,0 +1,56 @@
+postgres:
+  # Either set host literally, or read it from a secret with hostFrom (useful for a
+  # Crossplane connection secret, so the private IP is never copied by hand).
+  host: null
+  hostFrom:
+    secretKeyRef:
+      name: null
+      key: privateIP
+  port: 5432
+  # Database to dump. Required.
+  database: null
+  secret:
+    name: null
+    keys:
+      user: username
+      password: password
+
+s3:
+  bucket: null
+  # Object key prefix. Uploads <filePrefix>-<epoch>.sql.gz
+  filePrefix: null
+  secret:
+    name: aws-credentials
+    keys:
+      accessKeyId: accessKeyId
+      secretAccessKey: secretAccessKey
+  # Override the S3 endpoint (MinIO and friends). Leave null for AWS.
+  endpointUrl: null
+
+backup:
+  schedule: "0 1 * * *"
+  # ttlSecondsAfterFinished: 3600 # Optional (seconds before deleting completed jobs)
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  image:
+    repository: softonic/postgres-backup
+    tag: 0.1.0
+    pullPolicy: IfNotPresent
+    imagePullSecret: null
+  resources:
+    limits:
+      memory: "1024Mi"
+      cpu: "1"
+    requests:
+      memory: "512Mi"
+      cpu: "200m"
+  podLabels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+serviceAccount:
+  create: true
+  # Defaults to the fullname of the release when empty.
+  name: ""
